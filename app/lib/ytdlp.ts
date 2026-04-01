@@ -1,4 +1,4 @@
-import { YtDlp } from "ytdlp-nodejs";
+import { YtDlp, helpers } from "ytdlp-nodejs";
 
 let ytdlpInitPromise: Promise<YtDlp> | null = null;
 
@@ -8,9 +8,12 @@ export async function getYtDlp(): Promise<YtDlp> {
   }
 
   ytdlpInitPromise = (async () => {
-    let ytdlp = new YtDlp();
+    const initialFfmpegPath = process.env.FFMPEG_PATH || helpers.findFFmpegBinary();
+    let ytdlp = new YtDlp({
+      ffmpegPath: initialFfmpegPath,
+    });
 
-    const installed = await ytdlp.checkInstallationAsync({ ffmpeg: true });
+    const installed = await ytdlp.checkInstallationAsync({ ffmpeg: false });
     if (installed) {
       return ytdlp;
     }
@@ -24,7 +27,16 @@ export async function getYtDlp(): Promise<YtDlp> {
       binaryPath: updated.binaryPath,
     });
 
-    const ffmpegPath = await ytdlp.downloadFFmpeg();
+    let ffmpegPath: string | undefined = initialFfmpegPath;
+    if (!ffmpegPath) {
+      try {
+        ffmpegPath = await ytdlp.downloadFFmpeg();
+      } catch {
+        // Some production targets can't download binaries at runtime.
+        ffmpegPath = undefined;
+      }
+    }
+
     if (ffmpegPath) {
       ytdlp = new YtDlp({
         binaryPath: updated.binaryPath,
@@ -33,12 +45,12 @@ export async function getYtDlp(): Promise<YtDlp> {
     }
 
     const installedAfterUpdate = await ytdlp.checkInstallationAsync({
-      ffmpeg: true,
+      ffmpeg: false,
     });
 
     if (!installedAfterUpdate) {
       throw new Error(
-        "yt-dlp/ffmpeg is not executable in this runtime. Ensure binaries can run in production."
+        "yt-dlp is not executable in this runtime. Ensure binaries can run in production."
       );
     }
 
