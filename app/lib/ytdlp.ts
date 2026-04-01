@@ -20,9 +20,11 @@ export async function getYtDlp(): Promise<YtDlp> {
       verifyChecksum: true,
     });
 
-    ytdlp.setBinaryPath(updated.binaryPath);
+    const ytdlpWithUpdatedBinary = new YtDlp({
+      binaryPath: updated.binaryPath,
+    });
 
-    const installedAfterUpdate = await ytdlp.checkInstallationAsync({
+    const installedAfterUpdate = await ytdlpWithUpdatedBinary.checkInstallationAsync({
       ffmpeg: false,
     });
 
@@ -32,7 +34,7 @@ export async function getYtDlp(): Promise<YtDlp> {
       );
     }
 
-    return ytdlp;
+    return ytdlpWithUpdatedBinary;
   })().catch((error) => {
     ytdlpInitPromise = null;
     throw error;
