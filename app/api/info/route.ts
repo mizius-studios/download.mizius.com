@@ -1,5 +1,5 @@
-import { YtDlp } from "ytdlp-nodejs";
 import { NextRequest, NextResponse } from "next/server";
+import { getYtDlp } from "@/app/lib/ytdlp";
 
 const YOUTUBE_URL_RE =
   /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ytdlp = new YtDlp();
+    const ytdlp = await getYtDlp();
     const [infoRaw, formatsRaw] = await Promise.all([
       ytdlp.getInfoAsync(url),
       ytdlp.getFormatsAsync(url),

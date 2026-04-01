@@ -1,6 +1,6 @@
-import { YtDlp } from "ytdlp-nodejs";
 import { PassThrough } from "stream";
 import { NextRequest, NextResponse } from "next/server";
+import { getYtDlp } from "@/app/lib/ytdlp";
 
 const YOUTUBE_URL_RE =
   /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const ytdlp = new YtDlp();
+    const ytdlp = await getYtDlp();
 
     // Get the title for the filename
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
