@@ -8,9 +8,9 @@ export async function getYtDlp(): Promise<YtDlp> {
   }
 
   ytdlpInitPromise = (async () => {
-    const ytdlp = new YtDlp();
+    let ytdlp = new YtDlp();
 
-    const installed = await ytdlp.checkInstallationAsync({ ffmpeg: false });
+    const installed = await ytdlp.checkInstallationAsync({ ffmpeg: true });
     if (installed) {
       return ytdlp;
     }
@@ -20,21 +20,29 @@ export async function getYtDlp(): Promise<YtDlp> {
       verifyChecksum: true,
     });
 
-    const ytdlpWithUpdatedBinary = new YtDlp({
+    ytdlp = new YtDlp({
       binaryPath: updated.binaryPath,
     });
 
-    const installedAfterUpdate = await ytdlpWithUpdatedBinary.checkInstallationAsync({
-      ffmpeg: false,
+    const ffmpegPath = await ytdlp.downloadFFmpeg();
+    if (ffmpegPath) {
+      ytdlp = new YtDlp({
+        binaryPath: updated.binaryPath,
+        ffmpegPath,
+      });
+    }
+
+    const installedAfterUpdate = await ytdlp.checkInstallationAsync({
+      ffmpeg: true,
     });
 
     if (!installedAfterUpdate) {
       throw new Error(
-        "yt-dlp is not executable in this runtime. Ensure python3 is installed in production."
+        "yt-dlp/ffmpeg is not executable in this runtime. Ensure binaries can run in production."
       );
     }
 
-    return ytdlpWithUpdatedBinary;
+    return ytdlp;
   })().catch((error) => {
     ytdlpInitPromise = null;
     throw error;

@@ -47,84 +47,92 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allFormats = ((formatsRaw as any).formats ?? formatsRaw) as YtFormat[];
 
+      const qualityFrom = (f: YtFormat) => `${f.height}p${f.format_note?.includes("60") ? "60" : ""}`;
+
       // Combined video+audio (mp4 only, has both codecs)
       const combined = allFormats
-      .filter(
-        (f) =>
-          f.vcodec !== "none" &&
-          f.acodec !== "none" &&
-          f.ext === "mp4" &&
-          f.height &&
-          f.height > 0 &&
-          !f.format.includes("storyboard")
-      )
-      .map((f) => ({
-        formatId: f.format_id,
-        quality: `${f.height}p`,
-        ext: f.ext,
-        filesize: f.filesize ?? f.filesize_approx ?? null,
-        type: "video" as const,
-      }))
-      .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
+        .filter(
+          (f) =>
+            f.vcodec !== "none" &&
+            f.acodec !== "none" &&
+            f.ext === "mp4" &&
+            f.height &&
+            f.height > 0 &&
+            !f.format.includes("storyboard")
+        )
+        .map((f) => ({
+          formatId: f.format_id,
+          quality: `${qualityFrom(f)} - MP4 (video + audio)` ,
+          ext: f.ext,
+          filesize: f.filesize ?? f.filesize_approx ?? null,
+          type: "video" as const,
+          sortHeight: f.height ?? 0,
+        }))
+        .sort((a, b) => b.sortHeight - a.sortHeight);
 
-      // Video-only (mp4 with avc1, for broad compatibility)
+      // Video-only (mp4 with avc1) - merge with bestaudio during download
       const videoOnly = allFormats
-      .filter(
-        (f) =>
-          f.vcodec !== "none" &&
-          f.acodec === "none" &&
-          f.ext === "mp4" &&
-          f.vcodec.startsWith("avc1") &&
-          f.height &&
-          f.height > 0
-      )
-      .map((f) => ({
-        formatId: f.format_id,
-        quality: `${f.height}p${f.format_note?.includes("60") ? "60" : ""}`,
-        ext: f.ext,
-        filesize: f.filesize ?? f.filesize_approx ?? null,
-        type: "video-only" as const,
-      }))
-      .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
+        .filter(
+          (f) =>
+            f.vcodec !== "none" &&
+            f.acodec === "none" &&
+            f.ext === "mp4" &&
+            f.vcodec.startsWith("avc1") &&
+            f.height &&
+            f.height > 0
+        )
+        .map((f) => ({
+          formatId: f.format_id,
+          quality: `${qualityFrom(f)} - MP4 (merged with audio)` ,
+          ext: "mp4",
+          filesize: f.filesize ?? f.filesize_approx ?? null,
+          type: "video-only" as const,
+          sortHeight: f.height ?? 0,
+        }))
+        .sort((a, b) => b.sortHeight - a.sortHeight);
 
       // Audio-only (m4a preferred, then webm)
       const audioOnly = allFormats
-      .filter(
-        (f) =>
-          f.acodec !== "none" &&
-          f.vcodec === "none" &&
-          (f.ext === "m4a" || f.ext === "webm") &&
-          f.abr &&
-          f.abr > 0
-      )
-      .map((f) => ({
-        formatId: f.format_id,
-        quality: `Audio ${Math.round(f.abr!)}kbps`,
-        ext: f.ext,
-        filesize: f.filesize ?? f.filesize_approx ?? null,
-        type: "audio" as const,
-      }))
-      .sort(
-        (a, b) =>
-          parseInt(b.quality.replace(/\D/g, "")) -
-          parseInt(a.quality.replace(/\D/g, ""))
-      );
+        .filter(
+          (f) =>
+            f.acodec !== "none" &&
+            f.vcodec === "none" &&
+            (f.ext === "m4a" || f.ext === "webm") &&
+            f.abr &&
+            f.abr > 0
+        )
+        .map((f) => ({
+          formatId: f.format_id,
+          quality: `Audio ${Math.round(f.abr ?? 0)}kbps - ${f.ext.toUpperCase()}`,
+          ext: f.ext,
+          filesize: f.filesize ?? f.filesize_approx ?? null,
+          type: "audio" as const,
+          sortAbr: f.abr ?? 0,
+        }))
+        .sort((a, b) => b.sortAbr - a.sortAbr);
 
-      // Deduplicate each category by quality label
-      const dedup = <T extends { quality: string }>(arr: T[]): T[] => {
+      // Deduplicate by a stable key that keeps quality and type distinct.
+      const dedupBy = <T extends { quality: string; type: string }>(arr: T[]): T[] => {
         const seen = new Set<string>();
         return arr.filter((f) => {
-          if (seen.has(f.quality)) return false;
-          seen.add(f.quality);
+          const key = `${f.type}:${f.quality}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
           return true;
         });
       };
 
       const formats = [
-        ...dedup(combined),
-        ...dedup(videoOnly),
-        ...dedup(audioOnly).slice(0, 2),
-      ];
+        ...dedupBy(combined),
+        ...dedupBy(videoOnly),
+        ...dedupBy(audioOnly).slice(0, 3),
+      ].map((format) => ({
+        formatId: format.formatId,
+        quality: format.quality,
+        ext: format.ext,
+        filesize: format.filesize,
+        type: format.type,
+      }));
 
       if (formats.length === 0) {
         return NextResponse.json(

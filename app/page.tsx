@@ -95,6 +95,7 @@ export default function Home() {
       url: url.trim(),
       formatId: selected.formatId,
       type: selected.type,
+      ext: selected.ext,
       cookies,
     };
 
@@ -258,7 +259,7 @@ export default function Home() {
                     <div className="flex flex-wrap gap-2">
                       {videoInfo.formats.map((f, i) => (
                         <button
-                          key={f.formatId}
+                          key={`${f.type}-${f.formatId}-${i}`}
                           onClick={() => setSelectedIndex(i)}
                           className={`h-9 px-4 rounded-lg text-[13px] font-medium border transition-all cursor-pointer ${
                             selectedIndex === i
@@ -325,3 +326,4 @@ export default function Home() {
     </div>
   );
 }
+
