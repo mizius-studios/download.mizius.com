@@ -46,6 +46,7 @@ function formatBytes(bytes: number | null): string {
 
 export default function Home() {
   const [url, setUrl] = useState("");
+  const [cookies, setCookies] = useState("");
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -64,7 +65,7 @@ export default function Home() {
       const res = await fetch("/api/info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: url.trim(), cookies }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -84,14 +85,30 @@ export default function Home() {
     setDownloading(true);
 
     const selected = videoInfo.formats[selectedIndex];
-    const downloadUrl = `/api/download?url=${encodeURIComponent(url.trim())}&formatId=${selected.formatId}&type=${selected.type}`;
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/api/download";
+    form.enctype = "application/x-www-form-urlencoded";
+    form.style.display = "none";
 
-    const a = document.createElement("a");
-    a.href = downloadUrl;
-    a.download = "";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const fields = {
+      url: url.trim(),
+      formatId: selected.formatId,
+      type: selected.type,
+      cookies,
+    };
+
+    Object.entries(fields).forEach(([name, value]) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value;
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
 
     setTimeout(() => setDownloading(false), 3000);
   };
@@ -153,32 +170,48 @@ export default function Home() {
 
           {/* Input area */}
           <div className="mb-8">
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="https://youtube.com/watch?v=..."
-                  className="w-full h-12 px-4 rounded-xl bg-[var(--input-bg)] border border-[var(--border)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-ring)] transition-all"
-                />
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="w-full h-12 px-4 rounded-xl bg-[var(--input-bg)] border border-[var(--border)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-ring)] transition-all"
+                  />
+                </div>
+                <button
+                  onClick={fetchInfo}
+                  disabled={loading || !url.trim()}
+                  className="h-12 px-6 rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-[15px] font-medium hover:brightness-[0.92] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <span className="inline-block w-4 h-4 border-2 border-[var(--accent-text)]/30 border-t-[var(--accent-text)] rounded-full animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    "Fetch"
+                  )}
+                </button>
               </div>
-              <button
-                onClick={fetchInfo}
-                disabled={loading || !url.trim()}
-                className="h-12 px-6 rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-[15px] font-medium hover:brightness-[0.92] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 shrink-0 cursor-pointer"
-              >
-                {loading ? (
-                  <>
-                    <span className="inline-block w-4 h-4 border-2 border-[var(--accent-text)]/30 border-t-[var(--accent-text)] rounded-full animate-spin" />
-                    Fetching...
-                  </>
-                ) : (
-                  "Fetch"
-                )}
-              </button>
+
+              <div>
+                <textarea
+                  value={cookies}
+                  onChange={(e) => setCookies(e.target.value)}
+                  placeholder={`# Netscape HTTP Cookie File\n# http://curl.haxx.se/rfc/cookie_spec.html\n#HttpOnly_.youtube.com\tTRUE\t/\tTRUE\t...\tSID\t...`}
+                  className="w-full min-h-[160px] px-4 py-3 rounded-xl bg-[var(--input-bg)] border border-[var(--border)] text-[14px] leading-[1.55] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-ring)] transition-all font-mono"
+                />
+                <p className="mt-2 text-[12px] leading-[1.5] text-[var(--text-tertiary)]">
+                  Optional. Paste a Netscape cookie export here if YouTube asks
+                  for confirmation or the video requires an authenticated
+                  session.
+                </p>
+              </div>
             </div>
           </div>
 

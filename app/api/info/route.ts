@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getYtDlp } from "@/app/lib/ytdlp";
+import { createCookiesTempFile } from "@/app/lib/cookies";
 
 const YOUTUBE_URL_RE =
   /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
@@ -22,7 +23,7 @@ interface YtFormat {
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json();
+    const { url, cookies } = await request.json();
 
     if (!url || !YOUTUBE_URL_RE.test(url)) {
       return NextResponse.json(
@@ -32,18 +33,22 @@ export async function POST(request: NextRequest) {
     }
 
     const ytdlp = await getYtDlp();
-    const [infoRaw, formatsRaw] = await Promise.all([
-      ytdlp.getInfoAsync(url),
-      ytdlp.getFormatsAsync(url),
-    ]);
+    const cookieFile = cookies ? await createCookiesTempFile(cookies) : null;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const info = infoRaw as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allFormats = ((formatsRaw as any).formats ?? formatsRaw) as YtFormat[];
+    try {
+      const cookieOptions = cookieFile ? { cookies: cookieFile.path } : undefined;
+      const [infoRaw, formatsRaw] = await Promise.all([
+        ytdlp.getInfoAsync(url, cookieOptions),
+        ytdlp.getFormatsAsync(url, cookieOptions),
+      ]);
 
-    // Combined video+audio (mp4 only, has both codecs)
-    const combined = allFormats
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const info = infoRaw as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allFormats = ((formatsRaw as any).formats ?? formatsRaw) as YtFormat[];
+
+      // Combined video+audio (mp4 only, has both codecs)
+      const combined = allFormats
       .filter(
         (f) =>
           f.vcodec !== "none" &&
@@ -62,8 +67,8 @@ export async function POST(request: NextRequest) {
       }))
       .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
-    // Video-only (mp4 with avc1, for broad compatibility)
-    const videoOnly = allFormats
+      // Video-only (mp4 with avc1, for broad compatibility)
+      const videoOnly = allFormats
       .filter(
         (f) =>
           f.vcodec !== "none" &&
@@ -82,8 +87,8 @@ export async function POST(request: NextRequest) {
       }))
       .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
 
-    // Audio-only (m4a preferred, then webm)
-    const audioOnly = allFormats
+      // Audio-only (m4a preferred, then webm)
+      const audioOnly = allFormats
       .filter(
         (f) =>
           f.acodec !== "none" &&
@@ -105,45 +110,50 @@ export async function POST(request: NextRequest) {
           parseInt(a.quality.replace(/\D/g, ""))
       );
 
-    // Deduplicate each category by quality label
-    const dedup = <T extends { quality: string }>(arr: T[]): T[] => {
-      const seen = new Set<string>();
-      return arr.filter((f) => {
-        if (seen.has(f.quality)) return false;
-        seen.add(f.quality);
-        return true;
+      // Deduplicate each category by quality label
+      const dedup = <T extends { quality: string }>(arr: T[]): T[] => {
+        const seen = new Set<string>();
+        return arr.filter((f) => {
+          if (seen.has(f.quality)) return false;
+          seen.add(f.quality);
+          return true;
+        });
+      };
+
+      const formats = [
+        ...dedup(combined),
+        ...dedup(videoOnly),
+        ...dedup(audioOnly).slice(0, 2),
+      ];
+
+      if (formats.length === 0) {
+        return NextResponse.json(
+          { error: "No downloadable formats found for this video." },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        title: info.title ?? "Untitled",
+        author: info.uploader ?? info.channel ?? "Unknown",
+        lengthSeconds: String(info.duration ?? 0),
+        thumbnail: info.thumbnail ?? "",
+        viewCount: String(info.view_count ?? 0),
+        formats,
       });
-    };
-
-    const formats = [
-      ...dedup(combined),
-      ...dedup(videoOnly),
-      ...dedup(audioOnly).slice(0, 2),
-    ];
-
-    if (formats.length === 0) {
-      return NextResponse.json(
-        { error: "No downloadable formats found for this video." },
-        { status: 404 }
-      );
+    } finally {
+      if (cookieFile) {
+        await cookieFile.cleanup();
+      }
     }
-
-    return NextResponse.json({
-      title: info.title ?? "Untitled",
-      author: info.uploader ?? info.channel ?? "Unknown",
-      lengthSeconds: String(info.duration ?? 0),
-      thumbnail: info.thumbnail ?? "",
-      viewCount: String(info.view_count ?? 0),
-      formats,
-    });
   } catch (error) {
     console.error("Error fetching video info:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch video information.";
+    const status = message.includes("Cookies must") ? 400 : 500;
     return NextResponse.json(
-      {
-        error:
-          "Failed to fetch video information. Please check the URL and try again.",
-      },
-      { status: 500 }
+      { error: message },
+      { status }
     );
   }
 }
