@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Image from "next/image";
+import ThemeToggle from "./components/ThemeToggle";
 interface VideoFormat {
   formatId: string;
   quality: string;
@@ -121,36 +123,28 @@ export default function Home() {
     <div className="flex flex-col min-h-full">
       {/* Header */}
       <header className="border-b border-[var(--border)]">
-        <div className="max-w-[720px] mx-auto w-full px-6 py-5 flex items-center justify-between">
+        <div className="w-full px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-[var(--accent)] flex items-center justify-center">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--bg)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 2l0 20" />
-                <path d="M5 9l7 7 7-7" />
-              </svg>
-            </div>
+            <Image
+              src="/logo.webp"
+              alt="mizius logo"
+              width={28}
+              height={28}
+              className="rounded-full"
+            />
             <span className="font-medium text-[15px] tracking-[-0.01em] text-[var(--text-primary)]">
-              mizius<span className="text-[var(--text-tertiary)]">/</span>
-              download
+              <a
+                href="https://mizius.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[var(--text-secondary)] transition-colors"
+              >mizius</a><span className="text-[var(--text-tertiary)]">/</span><a
+                href="https://download.mizius.com"
+                className="hover:text-[var(--text-secondary)] transition-colors"
+              >download</a>
             </span>
           </div>
-          <a
-            href="https://mizius.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
-          >
-            mizius.com
-          </a>
+          <ThemeToggle />
         </div>
       </header>
 
