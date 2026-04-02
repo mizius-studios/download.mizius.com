@@ -315,13 +315,6 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border)]">
-        <div className="max-w-[720px] mx-auto w-full px-6 py-5 flex items-center justify-between text-[13px] text-[var(--text-tertiary)]">
-          <span>download.mizius.com</span>
-          <span>For personal use only</span>
-        </div>
-      </footer>
     </div>
   );
 }

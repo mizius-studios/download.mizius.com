@@ -1,22 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-  const [dark, setDark] = useState(() => {
-    if (typeof document !== "undefined") {
-      const htmlTheme = document.documentElement.getAttribute("data-theme");
-      if (htmlTheme === "dark") return true;
+  const [dark, setDark] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const htmlTheme = document.documentElement.getAttribute("data-theme");
+    if (htmlTheme === "dark") {
+      setDark(true);
+      return;
     }
-    if (typeof window !== "undefined") {
-      try {
-        return localStorage.getItem("theme") === "dark";
-      } catch {
-        return false;
-      }
+    try {
+      setDark(localStorage.getItem("theme") === "dark");
+    } catch {
+      setDark(false);
     }
-    return false;
-  });
+  }, []);
 
   const toggle = () => {
     const next = !dark;
@@ -28,6 +28,9 @@ export default function ThemeToggle() {
       // Ignore storage errors (privacy mode / restricted contexts).
     }
   };
+
+  // Render nothing until we know the theme to avoid hydration mismatch.
+  if (dark === null) return null;
 
   return (
     <button
