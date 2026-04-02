@@ -218,7 +218,7 @@ export default function Home() {
 
           {/* Error */}
           {error && (
-            <div className="mb-8 p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-[14px] leading-[1.5]">
+            <div className="mb-8 p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-[14px] leading-[1.5] whitespace-pre-line">
               {error}
             </div>
           )}
@@ -326,4 +326,3 @@ export default function Home() {
     </div>
   );
 }
-

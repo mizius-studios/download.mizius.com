@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getYtDlp } from "@/app/lib/ytdlp";
 import { createCookiesTempFile } from "@/app/lib/cookies";
+import {
+  buildCookieAuthInstructions,
+  isCookieAuthRequiredError,
+} from "@/app/lib/errors";
 
 const YOUTUBE_URL_RE =
   /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
@@ -156,9 +160,13 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("Error fetching video info:", error);
-    const message =
+    const rawMessage =
       error instanceof Error ? error.message : "Failed to fetch video information.";
-    const status = message.includes("Cookies must") ? 400 : 500;
+    const needsCookieAuth = isCookieAuthRequiredError(rawMessage);
+    const message = needsCookieAuth
+      ? buildCookieAuthInstructions(rawMessage)
+      : rawMessage;
+    const status = needsCookieAuth || rawMessage.includes("Cookies must") ? 400 : 500;
     return NextResponse.json(
       { error: message },
       { status }
