@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "download.mizius.com",
+  title: "mizius / download.mizius.com",
   description:
     "Download YouTube videos in your preferred format. Paste a link, pick a quality, and save it directly to your device.",
 };

@@ -6,7 +6,7 @@ import {
   isCookieAuthRequiredError,
 } from "@/app/lib/errors";
 
-const YOUTUBE_URL_RE =
+const youtubeURLRegex =
   /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
 
 interface YtFormat {
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   try {
     const { url, cookies } = await request.json();
 
-    if (!url || !YOUTUBE_URL_RE.test(url)) {
+    if (!url || !youtubeURLRegex.test(url)) {
       return NextResponse.json(
         { error: "Please provide a valid YouTube URL." },
         { status: 400 }
