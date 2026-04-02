@@ -12,6 +12,26 @@
   --accent: #C4642A;
   --accent-text: #FFFFFF;
   --accent-ring: rgba(196, 100, 42, 0.15);
+  --error-bg: #FEF2F2;
+  --error-border: #FECACA;
+  --error-text: #991B1B;
+}
+
+[data-theme="dark"] {
+  --bg: #141413;
+  --card-bg: #1C1C1A;
+  --subtle-bg: #232320;
+  --input-bg: #1C1C1A;
+  --border: #2E2E2A;
+  --text-primary: #E8E5E0;
+  --text-secondary: #9C978F;
+  --text-tertiary: #6B6760;
+  --accent: #D4793A;
+  --accent-text: #FFFFFF;
+  --accent-ring: rgba(212, 121, 58, 0.2);
+  --error-bg: #2D1515;
+  --error-border: #5C2020;
+  --error-text: #F87171;
 }
 
 @theme inline {
