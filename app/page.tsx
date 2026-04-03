@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import ThemeToggle from "./components/ThemeToggle";
+
+const COOKIES_STORAGE_KEY = "download-mizius-cookies";
 interface VideoFormat {
   formatId: string;
   quality: string;
@@ -54,6 +56,30 @@ export default function Home() {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [downloading, setDownloading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      const storedCookies = window.localStorage.getItem(COOKIES_STORAGE_KEY);
+      if (storedCookies !== null) {
+        setCookies(storedCookies);
+      }
+    } catch {
+      // Ignore storage availability errors.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (cookies) {
+        window.localStorage.setItem(COOKIES_STORAGE_KEY, cookies);
+        return;
+      }
+
+      window.localStorage.removeItem(COOKIES_STORAGE_KEY);
+    } catch {
+      // Ignore storage availability errors.
+    }
+  }, [cookies]);
 
   const fetchInfo = async () => {
     if (!url.trim()) return;
