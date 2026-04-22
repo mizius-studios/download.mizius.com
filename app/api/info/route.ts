@@ -5,6 +5,7 @@ import {
   buildCookieAuthInstructions,
   isCookieAuthRequiredError,
 } from "@/app/lib/errors";
+import { withResourceGuard } from "@/app/lib/resources";
 
 const youtubeURLRegex =
   /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
@@ -26,6 +27,10 @@ interface YtFormat {
 }
 
 export async function POST(request: NextRequest) {
+  return withResourceGuard("info", () => handleInfo(request));
+}
+
+async function handleInfo(request: NextRequest) {
   try {
     const { url, cookies } = await request.json();
 

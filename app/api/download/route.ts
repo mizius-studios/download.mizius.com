@@ -9,6 +9,7 @@ import {
   buildCookieAuthInstructions,
   isCookieAuthRequiredError,
 } from "@/app/lib/errors";
+import { withResourceGuard } from "@/app/lib/resources";
 
 const youtubeURLRegex =
   /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
@@ -152,12 +153,14 @@ async function handleDownload(
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  return handleDownload(
-    searchParams.get("url"),
-    searchParams.get("type") || "video",
-    searchParams.get("formatId"),
-    searchParams.get("ext"),
-    null
+  return withResourceGuard("download", () =>
+    handleDownload(
+      searchParams.get("url"),
+      searchParams.get("type") || "video",
+      searchParams.get("formatId"),
+      searchParams.get("ext"),
+      null,
+    ),
   );
 }
 
@@ -169,11 +172,13 @@ export async function POST(request: NextRequest) {
   const ext = formData.get("ext");
   const cookies = formData.get("cookies");
 
-  return handleDownload(
-    typeof url === "string" ? url : null,
-    type,
-    typeof formatId === "string" ? formatId : null,
-    typeof ext === "string" ? ext : null,
-    typeof cookies === "string" ? cookies : null
+  return withResourceGuard("download", () =>
+    handleDownload(
+      typeof url === "string" ? url : null,
+      type,
+      typeof formatId === "string" ? formatId : null,
+      typeof ext === "string" ? ext : null,
+      typeof cookies === "string" ? cookies : null,
+    ),
   );
 }
