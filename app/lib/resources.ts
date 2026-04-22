@@ -143,12 +143,13 @@ export async function withResourceGuard<T extends Response | NextResponse>(
     await semaphore.enqueue();
   }
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     // 3. Race the handler against a timeout promise.
     const result = await Promise.race([
       handler(),
       new Promise<never>((_resolve, reject) => {
-        setTimeout(() => {
+        timer = setTimeout(() => {
           reject(new TimeoutError(kind));
         }, REQUEST_TIMEOUT_MS);
       }),
@@ -164,6 +165,7 @@ export async function withResourceGuard<T extends Response | NextResponse>(
     }
     throw err;
   } finally {
+    clearTimeout(timer);
     semaphore.release();
   }
 }
