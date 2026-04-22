@@ -120,7 +120,7 @@ export async function withResourceGuard<T extends Response | NextResponse>(
   if (isMemoryPressureHigh()) {
     console.warn("[resources] Rejecting request – memory pressure too high");
     return NextResponse.json(
-      { error: "Server is under heavy load. Please try again shortly." },
+      { error: "Server is under heavy memory pressure. Please try again shortly." },
       { status: 503 },
     );
   }
@@ -133,9 +133,13 @@ export async function withResourceGuard<T extends Response | NextResponse>(
 
   if (!semaphore.acquire()) {
     if (semaphore.isFull) {
-      console.warn(`[resources] Rejecting ${kind} request – queue full (${semaphore.pendingCount} waiting)`);
+      const waiting = semaphore.pendingCount;
+      console.warn(`[resources] Rejecting ${kind} request – queue full (${waiting} waiting)`);
       return NextResponse.json(
-        { error: "Server is under heavy load. Please try again shortly." },
+        {
+          error: `Server is busy — ${waiting} requests ahead in queue. Please try again shortly.`,
+          queued: waiting,
+        },
         { status: 503 },
       );
     }
