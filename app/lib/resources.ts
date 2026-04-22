@@ -50,10 +50,6 @@ class Semaphore {
     private readonly maxQueue: number,
   ) {}
 
-  get activeCount(): number {
-    return this.running;
-  }
-
   get pendingCount(): number {
     return this.queue.length;
   }
@@ -132,6 +128,9 @@ export async function withResourceGuard<T extends Response | NextResponse>(
   const semaphore = kind === "download" ? downloadSemaphore : infoSemaphore;
 
   // 2. Try to acquire a slot immediately, otherwise queue (with depth limit).
+  //    Track elapsed time so the timeout budget includes queue wait.
+  const requestStart = Date.now();
+
   if (!semaphore.acquire()) {
     if (semaphore.isFull) {
       console.warn(`[resources] Rejecting ${kind} request – queue full (${semaphore.pendingCount} waiting)`);
@@ -143,21 +142,35 @@ export async function withResourceGuard<T extends Response | NextResponse>(
     await semaphore.enqueue();
   }
 
+  // 3. Deduct queue-wait time from the timeout budget so the total
+  //    wall-clock time (queue + execution) is bounded by REQUEST_TIMEOUT_MS.
+  const elapsed = Date.now() - requestStart;
+  const remainingMs = REQUEST_TIMEOUT_MS - elapsed;
+
+  if (remainingMs <= 0) {
+    semaphore.release();
+    console.warn(`[resources] ${kind} request timed out waiting in queue (${elapsed}ms)`);
+    return NextResponse.json(
+      { error: "Request timed out waiting for a slot. Please try again later." },
+      { status: 504 },
+    );
+  }
+
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    // 3. Race the handler against a timeout promise.
+    // 4. Race the handler against the remaining timeout budget.
     const result = await Promise.race([
       handler(),
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(() => {
           reject(new TimeoutError(kind));
-        }, REQUEST_TIMEOUT_MS);
+        }, remainingMs);
       }),
     ]);
     return result;
   } catch (err) {
     if (err instanceof TimeoutError) {
-      console.warn(`[resources] ${kind} request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      console.warn(`[resources] ${kind} request timed out after ${Date.now() - requestStart}ms (budget: ${REQUEST_TIMEOUT_MS}ms)`);
       return NextResponse.json(
         { error: "Request timed out. Please try a shorter video or try again later." },
         { status: 504 },
