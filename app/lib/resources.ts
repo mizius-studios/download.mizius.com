@@ -5,37 +5,37 @@ import { NextResponse } from "next/server";
 // Configuration – tuneable via environment variables
 // ---------------------------------------------------------------------------
 
+function intEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  const parsed = parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function floatEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  const parsed = parseFloat(raw);
+  return Number.isFinite(parsed) && parsed > 0 && parsed <= 1 ? parsed : fallback;
+}
+
 /** Max simultaneous yt-dlp download processes. */
-const MAX_CONCURRENT_DOWNLOADS = parseInt(
-  process.env.MAX_CONCURRENT_DOWNLOADS ?? "3",
-  10,
-);
+const MAX_CONCURRENT_DOWNLOADS = intEnv("MAX_CONCURRENT_DOWNLOADS", 3);
 
 /** Max simultaneous info-fetch requests. */
-const MAX_CONCURRENT_INFO = parseInt(
-  process.env.MAX_CONCURRENT_INFO ?? "5",
-  10,
-);
+const MAX_CONCURRENT_INFO = intEnv("MAX_CONCURRENT_INFO", 5);
 
 /**
  * Fraction of V8's heap size limit that, once exceeded, causes new requests to
  * be rejected.  For example 0.85 → reject when >85 % of the limit is used.
  */
-const MEMORY_THRESHOLD = parseFloat(
-  process.env.MEMORY_THRESHOLD ?? "0.85",
-);
+const MEMORY_THRESHOLD = floatEnv("MEMORY_THRESHOLD", 0.85);
 
 /** Per-request timeout in milliseconds (default: 10 minutes). */
-const REQUEST_TIMEOUT_MS = parseInt(
-  process.env.REQUEST_TIMEOUT_MS ?? "600000",
-  10,
-);
+const REQUEST_TIMEOUT_MS = intEnv("REQUEST_TIMEOUT_MS", 600000);
 
 /** Max requests waiting in the semaphore queue before rejecting immediately. */
-const MAX_QUEUE_DEPTH = parseInt(
-  process.env.MAX_QUEUE_DEPTH ?? "10",
-  10,
-);
+const MAX_QUEUE_DEPTH = intEnv("MAX_QUEUE_DEPTH", 10);
 
 // ---------------------------------------------------------------------------
 // Semaphore – limits concurrency for a given category of work
