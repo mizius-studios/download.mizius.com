@@ -1,3 +1,4 @@
+import { getHeapStatistics } from "v8";
 import { NextResponse } from "next/server";
 
 // ---------------------------------------------------------------------------
@@ -17,8 +18,8 @@ const MAX_CONCURRENT_INFO = parseInt(
 );
 
 /**
- * Fraction of total heap that, once exceeded, causes new requests to be
- * rejected.  For example 0.85 → reject when >85 % of heap is used.
+ * Fraction of V8's heap size limit that, once exceeded, causes new requests to
+ * be rejected.  For example 0.85 → reject when >85 % of the limit is used.
  */
 const MEMORY_THRESHOLD = parseFloat(
   process.env.MEMORY_THRESHOLD ?? "0.85",
@@ -78,13 +79,10 @@ const infoSemaphore = new Semaphore(MAX_CONCURRENT_INFO);
 // ---------------------------------------------------------------------------
 
 function isMemoryPressureHigh(): boolean {
-  const mem = process.memoryUsage();
-  const heapLimit =
-    // v8.getHeapStatistics() is more accurate but requires importing v8.
-    // rss is a reasonable proxy when heap_size_limit is unavailable.
-    (mem.heapTotal > 0 ? mem.heapTotal : mem.rss);
-  const used = mem.heapUsed;
-  return heapLimit > 0 && used / heapLimit > MEMORY_THRESHOLD;
+  const stats = getHeapStatistics();
+  const limit = stats.heap_size_limit;
+  const used = stats.used_heap_size;
+  return limit > 0 && used / limit > MEMORY_THRESHOLD;
 }
 
 // ---------------------------------------------------------------------------
@@ -97,11 +95,13 @@ export type ResourceKind = "download" | "info";
  * Wrap an async handler with concurrency + memory + timeout guards.
  *
  * If resources are exhausted the caller receives a 503 response.
- * If the handler exceeds `REQUEST_TIMEOUT_MS` the promise rejects with a 504.
+ * If the handler exceeds `REQUEST_TIMEOUT_MS` the guard returns a 504 and
+ * frees the semaphore slot (the underlying work may still finish in the
+ * background — ytdlp-nodejs does not support AbortSignal).
  */
 export async function withResourceGuard<T extends Response | NextResponse>(
   kind: ResourceKind,
-  handler: (signal: AbortSignal) => Promise<T>,
+  handler: () => Promise<T>,
 ): Promise<T | NextResponse> {
   // 1. Memory check – fail-fast before queuing.
   if (isMemoryPressureHigh()) {
@@ -117,17 +117,19 @@ export async function withResourceGuard<T extends Response | NextResponse>(
   // 2. Acquire a slot (waits if all slots are occupied).
   await semaphore.acquire();
 
-  const abortController = new AbortController();
-  const timer = setTimeout(() => {
-    abortController.abort();
-  }, REQUEST_TIMEOUT_MS);
-
   try {
-    // 3. Run the actual handler with an abort signal.
-    const result = await handler(abortController.signal);
+    // 3. Race the handler against a timeout promise.
+    const result = await Promise.race([
+      handler(),
+      new Promise<never>((_resolve, reject) => {
+        setTimeout(() => {
+          reject(new TimeoutError(kind));
+        }, REQUEST_TIMEOUT_MS);
+      }),
+    ]);
     return result;
   } catch (err) {
-    if (abortController.signal.aborted) {
+    if (err instanceof TimeoutError) {
       console.warn(`[resources] ${kind} request timed out after ${REQUEST_TIMEOUT_MS}ms`);
       return NextResponse.json(
         { error: "Request timed out. Please try a shorter video or try again later." },
@@ -136,7 +138,13 @@ export async function withResourceGuard<T extends Response | NextResponse>(
     }
     throw err;
   } finally {
-    clearTimeout(timer);
     semaphore.release();
+  }
+}
+
+class TimeoutError extends Error {
+  constructor(kind: string) {
+    super(`${kind} request exceeded ${REQUEST_TIMEOUT_MS}ms timeout`);
+    this.name = "TimeoutError";
   }
 }
