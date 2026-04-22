@@ -31,6 +31,12 @@ const REQUEST_TIMEOUT_MS = parseInt(
   10,
 );
 
+/** Max requests waiting in the semaphore queue before rejecting immediately. */
+const MAX_QUEUE_DEPTH = parseInt(
+  process.env.MAX_QUEUE_DEPTH ?? "10",
+  10,
+);
+
 // ---------------------------------------------------------------------------
 // Semaphore – limits concurrency for a given category of work
 // ---------------------------------------------------------------------------
@@ -39,7 +45,10 @@ class Semaphore {
   private running = 0;
   private readonly queue: Array<() => void> = [];
 
-  constructor(private readonly max: number) {}
+  constructor(
+    private readonly max: number,
+    private readonly maxQueue: number,
+  ) {}
 
   get activeCount(): number {
     return this.running;
@@ -49,15 +58,23 @@ class Semaphore {
     return this.queue.length;
   }
 
-  acquire(): Promise<void> {
+  acquire(): boolean {
     if (this.running < this.max) {
       this.running++;
-      return Promise.resolve();
+      return true;
     }
 
+    return false;
+  }
+
+  enqueue(): Promise<void> {
     return new Promise<void>((resolve) => {
       this.queue.push(resolve);
     });
+  }
+
+  get isFull(): boolean {
+    return this.queue.length >= this.maxQueue;
   }
 
   release(): void {
@@ -71,8 +88,8 @@ class Semaphore {
 }
 
 // Singleton semaphores – survive across requests in the same process.
-const downloadSemaphore = new Semaphore(MAX_CONCURRENT_DOWNLOADS);
-const infoSemaphore = new Semaphore(MAX_CONCURRENT_INFO);
+const downloadSemaphore = new Semaphore(MAX_CONCURRENT_DOWNLOADS, MAX_QUEUE_DEPTH);
+const infoSemaphore = new Semaphore(MAX_CONCURRENT_INFO, MAX_QUEUE_DEPTH);
 
 // ---------------------------------------------------------------------------
 // Memory guard
@@ -114,8 +131,17 @@ export async function withResourceGuard<T extends Response | NextResponse>(
 
   const semaphore = kind === "download" ? downloadSemaphore : infoSemaphore;
 
-  // 2. Acquire a slot (waits if all slots are occupied).
-  await semaphore.acquire();
+  // 2. Try to acquire a slot immediately, otherwise queue (with depth limit).
+  if (!semaphore.acquire()) {
+    if (semaphore.isFull) {
+      console.warn(`[resources] Rejecting ${kind} request – queue full (${semaphore.pendingCount} waiting)`);
+      return NextResponse.json(
+        { error: "Server is under heavy load. Please try again shortly." },
+        { status: 503 },
+      );
+    }
+    await semaphore.enqueue();
+  }
 
   try {
     // 3. Race the handler against a timeout promise.
