@@ -5,11 +5,11 @@ import { NextResponse } from "next/server";
 // Configuration – tuneable via environment variables
 // ---------------------------------------------------------------------------
 
-function intEnv(name: string, fallback: number): number {
+function intEnv(name: string, fallback: number, min = 1): number {
   const raw = process.env[name];
   if (raw === undefined) return fallback;
   const parsed = parseInt(raw, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return Number.isFinite(parsed) && parsed >= min ? parsed : fallback;
 }
 
 function floatEnv(name: string, fallback: number): number {
@@ -35,7 +35,7 @@ const MEMORY_THRESHOLD = floatEnv("MEMORY_THRESHOLD", 0.85);
 const REQUEST_TIMEOUT_MS = intEnv("REQUEST_TIMEOUT_MS", 600000);
 
 /** Max requests waiting in the semaphore queue before rejecting immediately. */
-const MAX_QUEUE_DEPTH = intEnv("MAX_QUEUE_DEPTH", 10);
+const MAX_QUEUE_DEPTH = intEnv("MAX_QUEUE_DEPTH", 10, 0);
 
 // ---------------------------------------------------------------------------
 // Semaphore – limits concurrency for a given category of work
@@ -86,6 +86,8 @@ class Semaphore {
 // Singleton semaphores – survive across requests in the same process.
 const downloadSemaphore = new Semaphore(MAX_CONCURRENT_DOWNLOADS, MAX_QUEUE_DEPTH);
 const infoSemaphore = new Semaphore(MAX_CONCURRENT_INFO, MAX_QUEUE_DEPTH);
+
+
 
 // ---------------------------------------------------------------------------
 // Memory guard
