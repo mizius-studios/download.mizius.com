@@ -59,7 +59,7 @@ export async function createCookiesTempFile(rawCookies: string): Promise<{
     return null;
   }
 
-  const tempDir = await mkdtemp(join(tmpdir(), "download-mizius-cookies-"));
+  const tempDir = await mkdtemp(join(tmpdir(), "vidra-cookies-"));
   const filePath = join(tempDir, "cookies.txt");
 
   await writeFile(filePath, normalized, "utf8");

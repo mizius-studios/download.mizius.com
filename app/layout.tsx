@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "mizius / download.mizius.com",
+  title: "Vidra",
   description:
-    "Download YouTube videos in your preferred format. Paste a link, pick a quality, and save it directly to your device.",
+    "Vidra downloads YouTube videos in your preferred format. Paste a link, pick a quality, and save it directly to your device.",
 };
 
 const themeScript = `

@@ -53,7 +53,7 @@ async function handleDownload(
     const info = (await ytdlp.getInfoAsync(url, cookieOptions)) as any;
     const title = (info.title ?? "video").replace(/[^\w\s-]/g, "").trim();
 
-    tempDir = await mkdtemp(join(tmpdir(), "mizius-download-"));
+    tempDir = await mkdtemp(join(tmpdir(), "vidra-download-"));
     const downloadBuilder = ytdlp
       .download(url)
       .setOutputTemplate(join(tempDir, "%(title).140B.%(ext)s"))

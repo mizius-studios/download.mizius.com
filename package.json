@@ -1,12 +1,11 @@
 {
-  "name": "download.mizius.com",
-  "version": "0.1.0",
+  "name": "vidra",
+  "version": "0.1.9",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start"
   },
   "dependencies": {
     "next": "16.2.2",

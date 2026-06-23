@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import ThemeToggle from "./components/ThemeToggle";
 
-const COOKIES_STORAGE_KEY = "download-mizius-cookies";
+const COOKIES_STORAGE_KEY = "vidra-cookies";
 interface VideoFormat {
   formatId: string;
   quality: string;
@@ -153,21 +153,13 @@ export default function Home() {
           <div className="flex items-center gap-2.5">
             <Image
               src="/logo.webp"
-              alt="mizius logo"
+              alt="Vidra logo"
               width={28}
               height={28}
               className="rounded-full"
             />
             <span className="font-medium text-[15px] tracking-[-0.01em] text-[var(--text-primary)]">
-              <a
-                href="https://mizius.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-[var(--text-secondary)] transition-colors"
-              >mizius</a><span className="text-[var(--text-tertiary)]">/</span><a
-                href="https://download.mizius.com"
-                className="hover:text-[var(--text-secondary)] transition-colors"
-              >download</a>
+              Vidra
             </span>
           </div>
           <ThemeToggle />
@@ -180,11 +172,11 @@ export default function Home() {
           {/* Hero */}
           <div className="mb-10">
             <h1 className="text-[clamp(28px,4vw,36px)] font-semibold tracking-[-0.03em] leading-[1.15] text-[var(--text-primary)] mb-3">
-              Download videos
+              Download videos with Vidra
             </h1>
             <p className="text-[16px] leading-[1.6] text-[var(--text-secondary)] max-w-[480px]">
-              Paste a YouTube link below to fetch available formats and download
-              the video directly to your device.
+              Paste a YouTube link below to fetch available formats and let
+              Vidra save the video directly to your device.
             </p>
           </div>
 
